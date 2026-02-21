@@ -113,7 +113,20 @@ of +${number - lastDailyCount}.`
 			})
 			.command("/set-next", async ({ payload: command }) => {
 				console.log(command);
-				return "Hello there";
+				let number: number;
+				try {
+					number = stringToNumber(command.text);
+				} catch(err) {
+					return "Error decoding"
+				}
+				await Promise.all([
+					env.STATE.put("number", (number - 1).toString()),
+					env.STATE.delete("lastCounter"),
+				]);
+				return {
+					message_type: "in_channel",
+					text: `<@${command.user_id}> set the next number to ${command.text}`
+				};
 			});
         return await app.run(request, ctx);
     },
