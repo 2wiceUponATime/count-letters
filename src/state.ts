@@ -38,16 +38,11 @@ export class State {
         });
     }
 
-    get<T extends keyof StateObject>(key: T): Promise<StateObject[T] | null>;
-    async get(
-        key: keyof StateObject
-    ): Promise<StateObject[keyof StateObject] | null> {
+    async get<T extends keyof StateObject>(
+        key: T
+    ): Promise<StateObject[T] | null> {
         const object = await this.getObject();
-        if (key in object) return object[key] ?? null;
-        const result = await this.db.get(key);
-        if (!result) return null;
-        const type = keyTypes[key];
-        return type === "number" ? parseInt(result, 10) : result;
+        return object[key] ?? null;
     }
 
     async put<T extends keyof StateObject>(
