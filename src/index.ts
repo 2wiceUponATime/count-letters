@@ -1,7 +1,7 @@
 import { WebClient } from "@slack/web-api";
 import { env } from "cloudflare:workers";
 import { SlackApp } from "slack-cloudflare-workers";
-import messagesJson from "../messages.json";
+import { templates, ParamsFor, Templates, TemplateParams } from "./messages";
 import { State } from "./state";
 
 type Awaitable<T> = Promise<T> | T;
@@ -9,17 +9,14 @@ type Awaitable<T> = Promise<T> | T;
 const client = new WebClient(env.SLACK_BOT_TOKEN);
 const countRegex = /^\s*([a-z]+)([^a-zA-Z]|$)/;
 
-function messages(key: keyof typeof messagesJson, context: Record<string, any> = {}) {
-    const template = messagesJson[key];
-    const keys = Object.keys(context);
-    const values = Object.values(context);
-    // Add numberToString to context if not present
-    if (!context.numberToString) {
-        keys.push("numberToString");
-        values.push(numberToString);
-    }
-    const func = new Function(...keys, `return \`${template}\`;`);
-    return func(...values);
+function template<T extends keyof TemplateParams>(id: T, context: ParamsFor<T>): string
+function template(id: Exclude<keyof Templates, keyof TemplateParams>): string
+function template(id: keyof Templates, context?: Record<string, string | number>) {
+    let template: string = templates[id];
+	for (const [key, value] of Object.entries(context ?? {})) {
+		template = template.replaceAll(`{{${key}}}`, value.toString());
+	}
+    return template;
 }
 
 // By ChatGPT
@@ -65,12 +62,18 @@ export default {
 		])
 		if (!number) return;
 		await state.put("lastDailyCount", number)
-		let message = messages("dailyTmw");
+		let message = template("dailyTmw");
 		if (lastDailyCount) {
-			if (number == lastDailyCount) {
-				message = messages("noProgress")
+			if (number === lastDailyCount) {
+				message = template("noProgress")
 			} else {
-				message = messages("daily", { lastDailyCount, number })
+				message = template("daily", {
+					number,
+					numberString: numberToString(number),
+					lastDailyCount,
+					lastDailyCountString: numberToString(lastDailyCount),
+					difference: number - lastDailyCount
+				})
 			}
 		}
 		await client.chat.postMessage({
@@ -86,8 +89,20 @@ export default {
     ): Promise<Response> {
 		const state = new State(env.STATE);
         const app = new SlackApp({ env })
+			.afterAuthorize(async ({ context }) => {
+				if (context.channelId !== env.CHANNEL) {
+					console.log(`Ignoring channel: ${context.channelId}`);
+					return {};
+				}
+			})
+			.event("member_joined_channel", async ({ payload }) => {
+				await client.chat.postEphemeral({
+					channel: payload.channel,
+					user: payload.user,
+					text: template("welcome"),
+				})
+			})
 			.message(countRegex, async ({ payload: message }) => {
-				if (message.channel != env.CHANNEL) return;
 				if (message.thread_ts || message.subtype) return;
 				const match = message.text.match(countRegex);
 				if (!match) return;
@@ -104,18 +119,20 @@ export default {
 				console.log("Number:", number);
 				let correct = true;
 				const promises: Promise<unknown>[] = [];
-				if (message.user == await lastCounter) {
+				if (message.user === await lastCounter) {
 					promises.push(client.chat.postEphemeral({
 						channel: message.channel,
 						user: message.user,
-						text: messages("twice")
+						text: template("twice")
 					}));
 					correct = false;
 				} else if (count != number + 1) {
 					promises.push(client.chat.postEphemeral({
 						channel: message.channel,
 						user: message.user,
-						text: messages("wrong", { number }),
+						text: template("wrong", {
+							correction: numberToString(number),
+						}),
 					}));
 					correct = false;
 				}
@@ -137,11 +154,12 @@ export default {
 			.command("/set-next", async ({ payload: command }) => {
 				console.log(command);
 				if (!env.ADMINS.split(",").includes(command.user_id)) {
-					return messages("noPerm");
+					return template("noPerm");
 				}
+				const text = command.text.trim();
 				let number: number;
 				try {
-					number = stringToNumber(command.text);
+					number = stringToNumber(text);
 				} catch(err) {
 					return "Error decoding"
 				}
@@ -151,7 +169,10 @@ export default {
 				});
 				await client.chat.postMessage({
 					channel: command.channel_id,
-					text: messages("numberSet", { command })
+					text: template("numberSet", {
+						userId: command.user_id,
+						text,
+					})
 				});
 			});
         return await app.run(request, ctx);
