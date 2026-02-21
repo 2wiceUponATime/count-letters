@@ -68,51 +68,53 @@ of +${number - lastDailyCount}.`
         ctx: ExecutionContext
     ): Promise<Response> {
         const app = new SlackApp({ env })
-			.message(countRegex,
-				async ({ payload: message }) => {
-					if (message.channel != env.CHANNEL) return;
-					if (message.thread_ts || message.subtype) return;
-					const match = message.text.match(countRegex);
-					if (!match) return;
-					const count = stringToNumber(match[1]);
-					console.log("Count:", count);
-					let numberText: Awaitable<string | null> = env.STATE.get("number");
-					const lastCounter = env.STATE.get("lastCounter");
-					if (!(await numberText)) {
-						await env.STATE.put("number", "0");
-						numberText = "0";
-					}
-					const number = parseInt(await numberText as string);
-					console.log("Number:", number);
-					let correct = true;
-					const promises: Promise<unknown>[] = [];
-					if (message.user == await lastCounter) {
-						promises.push(client.chat.postEphemeral({
-							channel: message.channel,
-							user: message.user,
-							text: "You can't count twice in a row, minion."
-						}));
-						correct = false;
-					} else if (count != number + 1) {
-						promises.push(client.chat.postEphemeral({
-							channel: message.channel,
-							user: message.user,
-							text: `That's the wrong number, minion. It should be ${numberToString(number + 1)}.`,
-						}));
-						correct = false;
-					}
-					if (correct) {
-						promises.push(env.STATE.put("number", count.toString()));
-						promises.push(env.STATE.put("lastCounter", message.user));
-					}
-					await client.reactions.add({
-						channel: message.channel,
-						timestamp: message.ts,
-						name: correct ? "white_check_mark" : "bangbang",
-					});
-					await Promise.all(promises);
+			.message(countRegex, async ({ payload: message }) => {
+				if (message.channel != env.CHANNEL) return;
+				if (message.thread_ts || message.subtype) return;
+				const match = message.text.match(countRegex);
+				if (!match) return;
+				const count = stringToNumber(match[1]);
+				console.log("Count:", count);
+				let numberText: Awaitable<string | null> = env.STATE.get("number");
+				const lastCounter = env.STATE.get("lastCounter");
+				if (!(await numberText)) {
+					await env.STATE.put("number", "0");
+					numberText = "0";
 				}
-			);
+				const number = parseInt(await numberText as string);
+				console.log("Number:", number);
+				let correct = true;
+				const promises: Promise<unknown>[] = [];
+				if (message.user == await lastCounter) {
+					promises.push(client.chat.postEphemeral({
+						channel: message.channel,
+						user: message.user,
+						text: "You can't count twice in a row, minion."
+					}));
+					correct = false;
+				} else if (count != number + 1) {
+					promises.push(client.chat.postEphemeral({
+						channel: message.channel,
+						user: message.user,
+						text: `That's the wrong number, minion. It should be ${numberToString(number + 1)}.`,
+					}));
+					correct = false;
+				}
+				if (correct) {
+					promises.push(env.STATE.put("number", count.toString()));
+					promises.push(env.STATE.put("lastCounter", message.user));
+				}
+				await client.reactions.add({
+					channel: message.channel,
+					timestamp: message.ts,
+					name: correct ? "white_check_mark" : "bangbang",
+				});
+				await Promise.all(promises);
+			})
+			.command("/set-next", async ({ payload: command }) => {
+				console.log(command);
+				return "Hello there";
+			});
         return await app.run(request, ctx);
     },
 };
