@@ -1,12 +1,26 @@
 import { WebClient } from "@slack/web-api";
 import { env } from "cloudflare:workers";
 import { SlackApp } from "slack-cloudflare-workers";
+import transcriptJson from "../transcript.json";
 import { State } from "./state";
 
 type Awaitable<T> = Promise<T> | T;
 
 const client = new WebClient(env.SLACK_BOT_TOKEN);
 const countRegex = /^\s*([a-z]+)([^a-zA-Z]|$)/;
+
+function transcript(key: keyof typeof transcriptJson, context: Record<string, any> = {}) {
+    const template = transcriptJson[key];
+    const keys = Object.keys(context);
+    const values = Object.values(context);
+    // Add numberToString to context if not present
+    if (!context.numberToString) {
+        keys.push("numberToString");
+        values.push(numberToString);
+    }
+    const func = new Function(...keys, `return \`${template}\`;`);
+    return func(...values);
+}
 
 // By ChatGPT
 function numberToString(n: number): string {
@@ -51,15 +65,12 @@ export default {
 		])
 		if (!number) return;
 		await state.put("lastDailyCount", number)
-		let message = "Daily report coming tomorrow";
+		let message = transcript("dailyTmw");
 		if (lastDailyCount) {
 			if (number == lastDailyCount) {
-				message = "No progress today :("
+				message = transcript("noProgress")
 			} else {
-				message = `Today, we went from \
-${numberToString(lastDailyCount)} (${lastDailyCount}) to \
-${numberToString(number)} (${number}). That's a total of \
-+${number - lastDailyCount}.`
+				message = transcript("daily", { lastDailyCount, number })
 			}
 		}
 		await client.chat.postMessage({
@@ -97,14 +108,14 @@ ${numberToString(number)} (${number}). That's a total of \
 					promises.push(client.chat.postEphemeral({
 						channel: message.channel,
 						user: message.user,
-						text: "You can't count twice in a row, minion."
+						text: transcript("twice")
 					}));
 					correct = false;
 				} else if (count != number + 1) {
 					promises.push(client.chat.postEphemeral({
 						channel: message.channel,
 						user: message.user,
-						text: `That's the wrong number, minion. It should be ${numberToString(number + 1)}.`,
+						text: transcript("wrong", { number }),
 					}));
 					correct = false;
 				}
@@ -126,7 +137,7 @@ ${numberToString(number)} (${number}). That's a total of \
 			.command("/set-next", async ({ payload: command }) => {
 				console.log(command);
 				if (!env.ADMINS.split(",").includes(command.user_id)) {
-					return "You do not have permission to run this command";
+					return transcript("noPerm");
 				}
 				let number: number;
 				try {
@@ -140,7 +151,7 @@ ${numberToString(number)} (${number}). That's a total of \
 				});
 				await client.chat.postMessage({
 					channel: command.channel_id,
-					text: `<@${command.user_id}> set the next number to ${command.text}`
+					text: transcript("numberSet", { command })
 				});
 			});
         return await app.run(request, ctx);

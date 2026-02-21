@@ -1,0 +1,10 @@
+{
+    "intro": "Heya, welcome! please have a read of the canvas to see <https://hackclub.enterprise.slack.com/docs/T0266FRGM/F0AEE6411E0|How this works> and other FAQ!",
+    "wrong": "thats the wrong number my little hack clubber. It should be ${numberToString(number + 1)}.",
+    "twice": "you cant count twice in a row. wait. :waiting-pigeon:",
+    "dailyTmw": "Daily report coming tomorrow",
+    "daily": "Today, we went from ${numberToString(lastDailyCount)} (${lastDailyCount}) to ${numberToString(number)} (${number}). That's a total of +${number - lastDailyCount}.",
+    "noProgress": "No progress today :(",
+    "noPerm": "You don't have permissions to do that, minion.",
+    "numberSet": "<@${command.user_id}> set the next number to ${command.text}."
+}
