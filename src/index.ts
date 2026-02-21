@@ -1,7 +1,7 @@
 import { WebClient } from "@slack/web-api";
 import { env } from "cloudflare:workers";
 import { SlackApp } from "slack-cloudflare-workers";
-import transcriptJson from "../transcript.json";
+import messagesJson from "../messages.json";
 import { State } from "./state";
 
 type Awaitable<T> = Promise<T> | T;
@@ -9,8 +9,8 @@ type Awaitable<T> = Promise<T> | T;
 const client = new WebClient(env.SLACK_BOT_TOKEN);
 const countRegex = /^\s*([a-z]+)([^a-zA-Z]|$)/;
 
-function transcript(key: keyof typeof transcriptJson, context: Record<string, any> = {}) {
-    const template = transcriptJson[key];
+function messages(key: keyof typeof messagesJson, context: Record<string, any> = {}) {
+    const template = messagesJson[key];
     const keys = Object.keys(context);
     const values = Object.values(context);
     // Add numberToString to context if not present
@@ -65,12 +65,12 @@ export default {
 		])
 		if (!number) return;
 		await state.put("lastDailyCount", number)
-		let message = transcript("dailyTmw");
+		let message = messages("dailyTmw");
 		if (lastDailyCount) {
 			if (number == lastDailyCount) {
-				message = transcript("noProgress")
+				message = messages("noProgress")
 			} else {
-				message = transcript("daily", { lastDailyCount, number })
+				message = messages("daily", { lastDailyCount, number })
 			}
 		}
 		await client.chat.postMessage({
@@ -108,14 +108,14 @@ export default {
 					promises.push(client.chat.postEphemeral({
 						channel: message.channel,
 						user: message.user,
-						text: transcript("twice")
+						text: messages("twice")
 					}));
 					correct = false;
 				} else if (count != number + 1) {
 					promises.push(client.chat.postEphemeral({
 						channel: message.channel,
 						user: message.user,
-						text: transcript("wrong", { number }),
+						text: messages("wrong", { number }),
 					}));
 					correct = false;
 				}
@@ -137,7 +137,7 @@ export default {
 			.command("/set-next", async ({ payload: command }) => {
 				console.log(command);
 				if (!env.ADMINS.split(",").includes(command.user_id)) {
-					return transcript("noPerm");
+					return messages("noPerm");
 				}
 				let number: number;
 				try {
@@ -151,7 +151,7 @@ export default {
 				});
 				await client.chat.postMessage({
 					channel: command.channel_id,
-					text: transcript("numberSet", { command })
+					text: messages("numberSet", { command })
 				});
 			});
         return await app.run(request, ctx);
