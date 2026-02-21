@@ -123,10 +123,10 @@ of +${number - lastDailyCount}.`
 					env.STATE.put("number", (number - 1).toString()),
 					env.STATE.delete("lastCounter"),
 				]);
-				return {
-					message_type: "in_channel",
+				await client.chat.postMessage({
+					channel: command.channel_id,
 					text: `<@${command.user_id}> set the next number to ${command.text}`
-				};
+				});
 			});
         return await app.run(request, ctx);
     },
