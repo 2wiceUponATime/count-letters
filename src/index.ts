@@ -1,7 +1,7 @@
 import { WebClient } from "@slack/web-api";
 import { env } from "cloudflare:workers";
 import { SlackApp } from "slack-cloudflare-workers";
-import { templates, ParamsFor, Templates, TemplateParams } from "./messages";
+import { templates, ParamsFor, Templates, TemplateParams } from "./templates";
 import { State } from "./state";
 
 type Awaitable<T> = Promise<T> | T;
@@ -49,6 +49,24 @@ function stringToNumber(s: string): number {
     return result;
 }
 
+const BLOCK = 26 ** 2;
+const OFFSET = stringToNumber("aaa");
+
+// By ChatGPT
+function roundToGoal(n: number): number {
+    if (n <= 0 || !Number.isInteger(n)) {
+        throw new Error("Input must be a positive integer");
+    }
+	n += 1;
+
+    if (n <= OFFSET) {
+        return OFFSET;
+    }
+
+    const k = Math.ceil((n - OFFSET) / BLOCK);
+    return OFFSET + k * BLOCK;
+}
+
 export default {
 	async scheduled(
 		_controller: ScheduledController,
@@ -67,12 +85,17 @@ export default {
 			if (number === lastDailyCount) {
 				message = template("noProgress")
 			} else {
+				const goal = roundToGoal(number);
+				const difference = number - lastDailyCount;
+				const goalDays = Math.ceil((goal - number) / difference)
 				message = template("daily", {
 					number,
 					numberString: numberToString(number),
 					lastDailyCount,
 					lastDailyCountString: numberToString(lastDailyCount),
-					difference: number - lastDailyCount
+					difference,
+					goal: numberToString(goal),
+					goalDays,
 				})
 			}
 		}
