@@ -182,7 +182,11 @@ export default {
 			.command("/set-next", async ({ payload: command }) => {
 				console.log(command);
 				if (!env.ADMINS.split(",").includes(command.user_id)) {
-					return template("noPerm");
+					await client.chat.postEphemeral({
+						channel: command.channel_id,
+						user: command.user_id,
+						text: template("noPerm"),
+					});
 				}
 				const text = command.text.trim();
 				let number: number;
