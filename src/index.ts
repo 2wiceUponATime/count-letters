@@ -1,23 +1,13 @@
 import { WebClient } from "@slack/web-api";
 import { env } from "cloudflare:workers";
 import { SlackApp } from "slack-cloudflare-workers";
-import { templates, ParamsFor, Templates, TemplateParams } from "./templates";
+import { template } from "./templates";
 import { State } from "./state";
 
 type Awaitable<T> = Promise<T> | T;
 
 const client = new WebClient(env.SLACK_BOT_TOKEN);
 const countRegex = /^\s*([a-z]+)([^a-zA-Z]|$)/;
-
-function template<T extends keyof TemplateParams>(id: T, context: ParamsFor<T>): string
-function template(id: Exclude<keyof Templates, keyof TemplateParams>): string
-function template(id: keyof Templates, context?: Record<string, string | number>) {
-    let template: string = templates[id];
-	for (const [key, value] of Object.entries(context ?? {})) {
-		template = template.replaceAll(`{{${key}}}`, value.toString());
-	}
-    return template;
-}
 
 // By ChatGPT
 function numberToString(n: number): string {

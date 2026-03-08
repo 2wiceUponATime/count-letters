@@ -11,7 +11,7 @@ export const templates = {
     noProgress: "No progress today :heavysob:",
     noPerm: "You don't have permissions to do that, little hacker :hack:",
     numberSet: "<@{{userId}}> set the next number to {{text}}.",
-    deleted: "The latest message was deleted! Continue counting from {{next}}."
+    deleted: "The latest message was deleted! Continue counting starting with {{next}}."
 } as const satisfies Record<string, string>;
 
 export type Templates = typeof templates;
@@ -40,3 +40,13 @@ export type ParamsFor<T extends keyof Templates> =
             [K in TemplateParams[T][number]]: string | number
         }
         : Record<string, never>
+
+export function template<T extends keyof TemplateParams>(id: T, context: ParamsFor<T>): string
+export function template(id: Exclude<keyof Templates, keyof TemplateParams>): string
+export function template(id: keyof Templates, context?: Record<string, string | number>) {
+    let template: string = templates[id];
+	for (const [key, value] of Object.entries(context ?? {})) {
+		template = template.replaceAll(`{{${key}}}`, value.toString());
+	}
+    return template;
+}
