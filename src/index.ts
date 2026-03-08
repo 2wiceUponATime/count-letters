@@ -123,7 +123,7 @@ export default {
 					}
 					return {};
 				}
-				console.log(payload);
+				console.log(payload.body);
 			})
 			.event("member_joined_channel", async ({ payload }) => {
 				await client.chat.postEphemeral({
@@ -134,7 +134,7 @@ export default {
 			})
 			.event("message", async ({ payload: message }) => {
 				if (message.subtype !== "message_deleted") return;
-				if (message.ts !== await state.get("lastMessageTs")) return;
+				if (message.previous_message.ts !== await state.get("lastMessageTs")) return;
 				const next = await state.get("number");
 				await client.chat.postMessage({
 					channel: message.channel,
