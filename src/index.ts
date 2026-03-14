@@ -40,7 +40,7 @@ function stringToNumber(s: string): number {
 }
 
 const BLOCK = 26 ** 2;
-const OFFSET = stringToNumber("aaa");
+const OFFSET = stringToNumber("bbb");
 
 // By ChatGPT
 function roundToGoal(n: number): number {
